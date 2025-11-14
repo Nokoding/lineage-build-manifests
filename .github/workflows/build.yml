@@ -1,14 +1,13 @@
 name: LineageOS 16.0 Build for gts210vewifi
 
 on:
-  workflow_dispatch: # Allows manual trigger
+  workflow_dispatch:
   push:
     branches:
       - main
 
 jobs:
   build:
-    # Use the Ubuntu 22.04 runner
     runs-on: ubuntu-22.04
     
     steps:
@@ -26,7 +25,7 @@ jobs:
           sudo apt-get clean
           sudo dpkg --configure -a
           
-          # Install deps from wiki, replacing 'python-is-python2' with 'python2'
+          # Install tools and Python 2
           sudo apt install -y \
             bc bison build-essential ccache curl flex g++-multilib \
             gcc-multilib git-lfs gnupg gperf imagemagick \
@@ -35,17 +34,29 @@ jobs:
             libssl-dev libxml2 libxml2-utils lzop pngcrush rsync \
             schedtool squashfs-tools xsltproc zip zlib1g-dev \
             lib32ncurses5-dev libncurses5 libncurses5-dev \
-            python2 # <-- This package provides /usr/bin/python2
-
-          # FIX: Manually link /usr/bin/python to python2
-          # This replaces the functionality of the missing 'python-is-python2' package
+            python2
           sudo ln -sf /usr/bin/python2 /usr/bin/python
-          
-          # Verify the python version to be sure
-          echo "Verifying python version:"
-          python --version
 
-      # 3. FIX: Install 'repo' tool using the secure $GITHUB_PATH
+      # 3. SETUP: Configure CCACHE and Clean up
+      - name: Set up CCACHE and Clean Disk Space
+        run: |
+          # Configure ccache
+          export USE_CCACHE=1
+          export CCACHE_EXEC=/usr/bin/ccache
+          
+          # Set a tight limit for ccache storage (5GB max)
+          ccache -M 5G 
+          echo "CCACHE configured with 5GB limit."
+          
+          # Clean up any cached packages or large temporary files
+          sudo apt-get autoremove -y
+          sudo apt-get clean
+          sudo rm -rf /usr/share/dotnet
+          
+          # Display disk space after cleanup (optional, for debugging)
+          df -h
+
+      # 4. FIX: Install 'repo' tool using the secure $GITHUB_PATH
       - name: Install Repo Tool
         run: |
           echo "Setting up 'repo' utility..."
@@ -54,52 +65,50 @@ jobs:
           curl 'https://storage.googleapis.com/git-repo-downloads/repo' -o "${HOME}/.bin/repo"
           chmod a+x "${HOME}/.bin/repo"
           
-          # Configure git (as required by repo init)
+          # Configure git
           git config --global user.email "you@example.com"
           git config --global user.name "Your Name"
           git config --global trailer.changeid.key "Change-Id"
           git lfs install
 
-      # 4. FIX: Initialize Repository (using wiki's exact command)
+      # 5. Initialize Repository
       - name: Initialize LineageOS Repository
         run: |
           echo "Initializing source repository..."
           mkdir -p lineage
           cd lineage
           
-          # Use the exact command from the LineageOS 16.0 guide
+          # Use the wiki's exact command
           repo init -u https://github.com/LineageOS/android.git -b lineage-16.0 --git-lfs --no-clone-bundle
           
           # Copy your local_manifests.xml for the vendor blobs
           mkdir -p ./.repo/local_manifests/
           cp ../local_manifests.xml ./.repo/local_manifests/
 
-      # 5. FIX: Sync the Source Code (removed unsupported flag)
-      - name: Repo Sync
+      # 6. Sync the Source Code
+      - name: Repo Sync (This is the high-risk step)
         run: |
           echo "Starting repo sync..."
           cd lineage
           repo sync --force-sync --jobs=4 --no-clone-bundle
 
-      # 6. FIX: Run 'breakfast' (replaces 'lunch')
+      # 7. Run 'breakfast'
       - name: Prepare Device-Specific Code
         run: |
           echo "Running breakfast..."
           cd lineage
           source build/envsetup.sh
-          # This command downloads the device tree and kernel
           breakfast gts210vewifi
 
-      # 7. FIX: Run 'brunch' (replaces 'mka bacon')
+      # 8. Run 'brunch'
       - name: Start Build
         run: |
           echo "Starting brunch..."
           cd lineage
           source build/envsetup.sh
-          # This is the final build command from the guide
           brunch gts210vewifi
 
-      # 8. Upload the final ZIP file
+      # 9. Upload the final ZIP file
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
