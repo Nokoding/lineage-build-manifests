@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<manifest>
+  <remote name="gh-auth" fetch="https://github.com/" review="github.com" />
+  <project name="TheMuppets/proprietary_vendor_samsung" path="vendor/samsung" remote="gh-auth" revision="lineage-16.0" />
+</manifest>
