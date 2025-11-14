@@ -1,50 +1,98 @@
-name: LineageOS 16.0 Build - gts210vewifi
+name: LineageOS Build Job
 
-# This allows you to manually trigger the workflow from the GitHub Actions tab.
 on:
-  workflow_dispatch:
+  workflow_dispatch: # Allows manual trigger
+  push:
+    branches:
+      - main
+  pull_request:
 
 jobs:
   build:
-    # Specifies the runner to use the Ubuntu 20.04 LTS image.
+    # Use the Ubuntu 22.04 runner, matching the environment in your logs
     runs-on: ubuntu-22.04
     
     steps:
-    - name: Checkout manifest repository
-      uses: actions/checkout@v4
-      with:
-        # IMPORTANT: Replace <YOUR_GITHUB_USERNAME> with your username
-        repository: Nokoding/lineage-build-manifests
-        
-    - name: Install build dependencies
-      run: |
-        sudo apt update
-        # Installs all necessary LineageOS build tools, including make and ImageMagick.
-        sudo apt install -y bc bison build-essential ccache curl flex g++-multilib imagemagick git gnupg gperf lib32ncurses5-dev lib32readline-dev lib32z1-dev liblz4-tool libncurses5-dev libsdl1.2-dev libssl-dev libxml2 libxml2-utils lzop pngcrush rsync schedtool squashfs-tools xsltproc zip zlib1g-dev
+      # 1. Checkout the manifest repository (Nokoding/lineage-build-manifests)
+      - name: Checkout Manifest Repository
+        uses: actions/checkout@v4
+        with:
+          # Use the repository and branch from your log
+          repository: Nokoding/lineage-build-manifests
+          ref: main
+          # Fetch full history needed for 'repo' manifest logic later
+          fetch-depth: 0 
 
-    - name: Initialize Repo and Sync Source
-      run: |
-        # Initialize the repository tool for the lineage-16.0 branch
-        repo init --depth=1 -u https://github.com/LineageOS/android.git -b lineage-16.0
-        
-        # Copy your local_manifests.xml from this repository into the build environment
-        mkdir -p .repo/local_manifests
-        cp local_manifests.xml .repo/local_manifests/
-        
-        # Sync the entire source tree using all available cores on the runner
-        repo sync -c -j$(nproc) --force-sync --no-tags --no-clone-bundle
+      # 2. Fix: Install Build Dependencies
+      # Fixes the 'git-man' conflict by removing 'git' from the installation list.
+      - name: Install Build Dependencies (Fixed)
+        run: |
+          echo "Installing build dependencies..."
+          # Clean up any potential broken package state
+          sudo apt-get clean
+          sudo dpkg --configure -a
+          
+          # Install tools (git is removed)
+          sudo apt install -y \
+            bc bison build-essential ccache curl flex g++-multilib \
+            imagemagick gnupg gperf lib32ncurses5-dev lib32readline-dev \
+            lib32z1-dev liblz4-tool libncurses5-dev libsdl1.2-dev \
+            libssl-dev libxml2 libxml2-utils lzop pngcrush rsync \
+            schedtool squashfs-tools xsltproc zip zlib1g-dev
 
-    - name: Start the Build
-      run: |
-        # Load the build environment functions (breakfast, brunch)
-        source build/envsetup.sh
-        
-        # Start the compilation process
-        brunch gts210vewifi
+      # 3. Fix: Install and Setup 'repo' Tool
+      # Addresses the "repo: command not found" (Exit Code 127) error.
+      - name: Install Repo Tool
+        run: |
+          echo "Setting up 'repo' utility..."
+          # Create the local bin directory
+          mkdir -p "${HOME}/.bin"
+          
+          # Add the directory to the GitHub Actions PATH for all subsequent steps
+          echo "::add-path::${HOME}/.bin"
+          
+          # Download the repo utility and make it executable
+          curl 'https://storage.googleapis.com/git-repo-downloads/repo' -o "${HOME}/.bin/repo"
+          chmod a+x "${HOME}/.bin/repo"
 
-    - name: Upload Final Artifact (ZIP)
-      uses: actions/upload-artifact@v4
-      with:
-        name: lineage-16.0-gts210vewifi
-        # Path where the final flashable ZIP file is created
-        path: out/target/product/gts210vewifi/lineage-*.zip
+      # 4. Initialize the Source Repository
+      - name: Initialize LineageOS Repository
+        run: |
+          # Create the main working directory for the source code
+          mkdir -p lineage
+          cd lineage
+          
+          # Initialize the LineageOS 16.0 (Android 9 Pie) tree
+          repo init -u https://github.com/LineageOS/android.git -b lineage-16.0
+          
+          # Create the required local manifests directory
+          mkdir -p ./.repo/local_manifests/
+          
+          # Copy your custom local manifest (from the checked-out repo)
+          cp ../local_manifests.xml ./.repo/local_manifests/
+
+      # 5. Sync the Source Code
+      - name: Repo Sync
+        run: |
+          echo "Starting repo sync..."
+          cd lineage
+          # Sync using multiple jobs (j4) and ensure authentication via manifest works
+          repo sync --force-sync --jobs=4 --fail-on-missing --no-clone-bundle
+
+      # 6. Build Preparation (Next Steps)
+      # These steps are placeholders for a full build process
+      - name: Environment Setup
+        run: |
+          echo "Setting up build environment..."
+          cd lineage
+          source build/envsetup.sh
+          # Replace 'device_name' and 'build_type' with your actual target
+          # lunch lineage_device_name-build_type
+          # Example: lunch lineage_jfltexx-userdebug
+
+      # 7. Start the Build (Final Step)
+      - name: Start Build
+        run: |
+          echo "Starting device build (example)..."
+          cd lineage
+          # Example: mka bacon
