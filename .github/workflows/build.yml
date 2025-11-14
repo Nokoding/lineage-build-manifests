@@ -19,14 +19,14 @@ jobs:
           repository: Nokoding/lineage-build-manifests
           ref: main
 
-      # 2. FIX: Install ALL dependencies from the official Wiki
-      - name: Install Build Dependencies
+      # 2. FIX: Install Dependencies and Manually set up Python 2
+      - name: Install Build Dependencies and Python 2
         run: |
           echo "Installing build dependencies..."
           sudo apt-get clean
           sudo dpkg --configure -a
           
-          # This list is from the wiki, plus 'python-is-python2' for Lineage-16.0
+          # Install deps from wiki, replacing 'python-is-python2' with 'python2'
           sudo apt install -y \
             bc bison build-essential ccache curl flex g++-multilib \
             gcc-multilib git-lfs gnupg gperf imagemagick \
@@ -35,7 +35,15 @@ jobs:
             libssl-dev libxml2 libxml2-utils lzop pngcrush rsync \
             schedtool squashfs-tools xsltproc zip zlib1g-dev \
             lib32ncurses5-dev libncurses5 libncurses5-dev \
-            python-is-python2
+            python2 # <-- This package provides /usr/bin/python2
+
+          # FIX: Manually link /usr/bin/python to python2
+          # This replaces the functionality of the missing 'python-is-python2' package
+          sudo ln -sf /usr/bin/python2 /usr/bin/python
+          
+          # Verify the python version to be sure
+          echo "Verifying python version:"
+          python --version
 
       # 3. FIX: Install 'repo' tool using the secure $GITHUB_PATH
       - name: Install Repo Tool
@@ -87,7 +95,6 @@ jobs:
         run: |
           echo "Starting brunch..."
           cd lineage
-          # The 'croot' command is not needed here as we 'cd' first
           source build/envsetup.sh
           # This is the final build command from the guide
           brunch gts210vewifi
