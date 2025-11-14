@@ -21,7 +21,7 @@ jobs:
           ref: main
           fetch-depth: 0 
 
-      # 2. Fix: Install Build Dependencies (Resolves Git Conflict)
+      # 2. FIX: Install Build Dependencies (Resolves Git Conflict)
       - name: Install Build Dependencies (Fixed)
         run: |
           echo "Installing build dependencies..."
@@ -37,7 +37,7 @@ jobs:
             libssl-dev libxml2 libxml2-utils lzop pngcrush rsync \
             schedtool squashfs-tools xsltproc zip zlib1g-dev
 
-      # 3. Fix: Install and Setup 'repo' Tool (Resolves "command not found" using $GITHUB_PATH)
+      # 3. FIX: Install and Setup 'repo' Tool (Uses $GITHUB_PATH to fix 'command not found')
       - name: Install Repo Tool
         run: |
           echo "Setting up 'repo' utility with Environment File..."
@@ -66,24 +66,26 @@ jobs:
           mkdir -p ./.repo/local_manifests/
           cp ../local_manifests.xml ./.repo/local_manifests/
 
-      # 5. Sync the Source Code
-      - name: Repo Sync
+      # 5. FIX: Sync the Source Code (Removed unsupported '--fail-on-missing' flag)
+      - name: Repo Sync (Fixed)
         run: |
           echo "Starting repo sync..."
           cd lineage
-          repo sync --force-sync --jobs=4 --fail-on-missing --no-clone-bundle
+          # Sync using multiple jobs (j4)
+          repo sync --force-sync --jobs=4 --no-clone-bundle
 
-      # 6. Build Preparation (Start of the actual build steps)
+      # 6. Build Preparation (Next Steps)
+      # These steps are placeholders—replace comments with your specific device commands
       - name: Environment Setup
         run: |
           echo "Setting up build environment..."
           cd lineage
           source build/envsetup.sh
-          # Add your lunch command here (e.g., lunch lineage_jfltexx-userdebug)
+          # TODO: Add your 'lunch' command here (e.g., lunch lineage_jfltexx-userdebug)
 
       # 7. Start the Build (Final Step)
       - name: Start Build
         run: |
           echo "Starting device build (example)..."
           cd lineage
-          # Add your make command here (e.g., mka bacon)
+          # TODO: Add your 'make' command here (e.g., mka bacon)
