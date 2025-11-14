@@ -7,7 +7,7 @@ on:
 jobs:
   build:
     # Specifies the runner to use the Ubuntu 20.04 LTS image.
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     
     steps:
     - name: Checkout manifest repository
